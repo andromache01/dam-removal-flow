@@ -4,7 +4,7 @@ and a csv file with data on dam removals used for the analysis originally
 downloaded from the USGS at https://www.sciencebase.gov/catalog/item/55071bf9e4b02e76d757c076.
 This analysis was conducted as a final project by Tara Franey for class BIO594
 at the University of Rhode Island. Thanks to Professor Rachel Schwartz, Professor
-Art Gold and Dr. Jeff Hollister(geospatial analyis code taken from his workshop
+Art Gold and Dr. Jeff Hollister(geospatial analyis code taken from his
 RhodyRStats 'geospatial_with_f' workshop at 
 https://github.com/rhodyrstats/geospatial_with_sf/blob/master/geospatial_with_sf.Rmd). 
 
