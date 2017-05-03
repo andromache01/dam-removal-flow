@@ -8,15 +8,18 @@ Art Gold and Dr. Jeff Hollister(geospatial analyis code taken from his
 RhodyRStats 'geospatial_with_f' workshop at 
 https://github.com/rhodyrstats/geospatial_with_sf/blob/master/geospatial_with_sf.Rmd). 
 
-This code is designed to take an information file on dam removals,
-select those dams with associated USGS monitoring gages, and find the closest
+This code is designed to run as a whole in Rstudio.
+
+The code takes an information file on dam removals,
+selects those dams with associated USGS monitoring gages, and find the closest
 USGS reference gage. For each of these dams, the code will retrieve daily flow
 data from the USGS system. Then it will find the maximum 1 day flow for each
 year (for the reference gage and the downstream dam gage), then find how much
 flow at the dam gage differs for flow at reference gage, while correcting for
 respective drainage areas. This distribution of this value can be compared in 
-"during" dam and "pre-dam" years. The output is designed to be a data frame, 
-with the Dam Name, the p-value for during vs pre dam.
+"during" dam and "after-dam" years. The result of the "during" dam average 
+divided by the "after" dam average and the p-value of a t-test on the two sets
+is moved into a data frame. The final output is a csv file.
 
 Warning: parts of this code may take substantial time and require internet.
 Also note that one function is used in this project. Although the standard
@@ -24,8 +27,7 @@ protocol is to include functions at the beginning of the code, there is only
 one function, and it does not make much sense out of context, so it is
 include where it is used.
 
-Output: Current code prints output in "final results" data frame. Additional
-details can be found in the "gagepairs" data frame.
+Output: Current code prints data frame into a csv file.
 Error column indicates issues with the data. 
 'Error0' is indicated if the dam gage and reference gage are the same.
 'Error1' indicates that # daily flow data is not available for at least one of 
