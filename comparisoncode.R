@@ -1,3 +1,5 @@
+# This code is designed to run as a whole in Rstudio.
+
 # This code is designed to take an information file on dam removals,
 # select those dams with associated USGS monitoring gages, and find the closest
 # USGS reference gage. For each of these dams, the code will retrieve daily flow
@@ -5,8 +7,9 @@
 # year (for the reference gage and the downstream dam gage), then find how much
 # flow at the dam gage differs for flow at reference gage, while correcting for
 # respective drainage areas. This distribution of this value can be compared in 
-# "during" dam and "pre-dam" years. The output is designed to be a data frame, 
-# with the Dam Name, the p-value for during vs pre dam.
+# "during" dam and "pre-dam" years. The result of the "during" dam average 
+# divided by the "after" dam average and the p-value of a t-test on the two sets
+# is moved into a data frame. The final output is a csv file.
 #
 # Warning: parts of this code may take substantial time and require internet.
 # Also note that one function is used in this project. Although the standard
@@ -14,8 +17,9 @@
 # one function, and it does not make much sense out of context, so it is
 # include where it is used.
 #
-# Output: Current code prints output in "final results" data frame. Additional
-# details can be found in the "gagepairs" data frame.
+# Output: Current code prints output in "final results" data frame. 
+# Extra code at the end creates histograms of the during/after dam ratio for all
+# dams, significant dams and non significant dams.
 # Error column indicates issues with the data. 
 # 'Error0' is indicated if the dam gage and reference gage are the same.
 # 'Error1' indicates that # daily flow data is not available for at least one of 
@@ -26,9 +30,6 @@
 # 'Error 4' indicates that the gage listed for the dam is listed for multiple 
 # dams, possible removed in sequence in different years, which may generate 
 # cumulative results, but results are reported.
-#
-# An optional final piece of code combines these two data frames and writes 
-# to a CSV
 
 
 #Importing relevant libraries. Use install.packages("[packagename]") if you haven't before
@@ -170,3 +171,21 @@ final_results<-compare_flows(gagepairs)
 #writes to csv
 completeresults<-merge(final_results,gagepairs, by='DamName') #puts all info in one dataframe
 write.csv(completeresults, file='max1dayresults.csv') #prints data frame to csv
+
+#creates histograms of all results, significant and insignificant only
+plotdata<-completeresults %>% filter(is.na(AverageDifference)==FALSE) %>% select (DamName, AverageDifference, PValue, refdrain, damdrain)
+plotdata$significant<- (plotdata$PValue<0.05)
+plot1<- plotdata %>% filter(significant==TRUE) 
+plot2<- plotdata %>% filter(significant==FALSE)
+
+jpeg(file="alldams.jpg", height=300)
+ggplot(plotdata, aes(AverageDifference))+ geom_histogram(binwidth=0.5, fill="green") + scale_x_continuous(name = 'mean of during dam/mean of after dam', breaks = seq(0,11,0.5), labels=c('0','0.5', '1',' 1.5','2',' ',' ',' ',' ',' ','5',' ',' ',' ',' ',' ',' ',' ',' ',' ','10',' ',' '))+ theme_classic()+ ggtitle('Histogram of during/after ratio for evaluated dams')
+dev.off()
+
+jpeg(file="sigdams.jpg", height=300)
+ggplot(plot1, aes(AverageDifference))+ geom_histogram(binwidth=0.5, fill="blue") + scale_x_continuous(name = 'mean of during dam/mean of after dam', breaks = seq(0,11,0.5), labels=c('0','0.5', '1',' 1.5','2',' ',' ',' ',' ',' ','5',' ',' ',' ',' ',' ',' ',' ',' ',' ','10',' ',' '))+ theme_classic()+ ggtitle('Histogram of during/after ratio for dams with p <0.05')
+dev.off()
+
+jpeg(file="nonsigdams.jpg", height=300)
+ggplot(plot2, aes(AverageDifference))+ geom_histogram(binwidth=0.5, fill="yellow") + scale_x_continuous(name = 'mean of during dam/mean of after dam', breaks = seq(0,11,0.5), labels=c('0','0.5', '1',' 1.5','2',' ',' ',' ',' ',' ','5',' ',' ',' ',' ',' ',' ',' ',' ',' ','10',' ',' '))+ theme_classic()+ ggtitle('Histogram of during/after ratio for evaluated dams, with p>0.05')
+dev.off()

@@ -27,7 +27,10 @@ protocol is to include functions at the beginning of the code, there is only
 one function, and it does not make much sense out of context, so it is
 include where it is used.
 
-Output: Current code prints data frame into a csv file.
+Output: Current code prints output in "final results" data frame. 
+Extra code at the end creates histograms of the during/after dam ratio for all
+dams, significant dams and non significant dams.
+
 Error column indicates issues with the data. 
 'Error0' is indicated if the dam gage and reference gage are the same.
 'Error1' indicates that # daily flow data is not available for at least one of 
@@ -38,6 +41,3 @@ the during dam existence and after dam removal periods to perform a t-test.
 'Error 4' indicates that the gage listed for the dam is listed for multiple 
 dams, possible removed in sequence in different years, which may generate 
 cumulative results, but results are reported.
-
-An optional final piece of code combines these two data frames and writes 
-to a CSV
