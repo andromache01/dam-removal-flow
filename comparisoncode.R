@@ -170,6 +170,8 @@ final_results<-compare_flows(gagepairs)
 
 #writes to csv
 completeresults<-merge(final_results,gagepairs, by='DamName') #puts all info in one dataframe
+colnames(completeresults)[7]<-'refdrain'
+colnames(completeresults)[11]<-'damdrain'
 write.csv(completeresults, file='max1dayresults.csv') #prints data frame to csv
 
 #creates histograms of all results, significant and insignificant only
