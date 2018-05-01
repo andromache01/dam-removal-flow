@@ -32,6 +32,7 @@
 # cumulative results, but results are reported.
 
 
+
 #Importing relevant libraries. Use install.packages("[packagename]") if you haven't before
 library(dataRetrieval)
 library(dplyr)
@@ -48,7 +49,7 @@ dam_df<-read.csv("dam_r.csv", na.strings=c(""," ","NA"),stringsAsFactors=FALSE) 
 us_dam_df<-dam_df %>% filter(DamCountry=="USA") #only US dams
 gagelisted<-us_dam_df %>%  filter(!is.na(DamAssociatedUSGSStreamGaugingStation)) %>% filter (!grepl(" ", DamAssociatedUSGSStreamGaugingStation)) #select dams with listed USGS station
 bldam_coord<-as.matrix(gagelisted[,7:8]) #separates out the latitude and longitude
-bldam_data<- gagelisted %>% select(DamAccessionNumber, DamName, DamRiverName,DamAssociatedUSGSStreamGaugingStation,DamState_Province,DamLatitude,DamLongitude,DamMapDatum, DamYearBuiltRemovedStructure,DamYearRemovalFinished,DamReservoirVolume_m3,DamUpstreamDrainageArea_km2) # separates out relevant parameters
+bldam_data<- gagelisted %>% select(DamAccessionNumber, DamName, DamRiverName,DamAssociatedUSGSStreamGaugingStation,DamState_Province,DamLatitude,DamLongitude,DamMapDatum, DamYearBuiltRemovedStructure,DamYearRemovalFinished,DamReservoirVolume_m3,DamUpstreamDrainageArea_km2, DamHeight_m, DamOperation) # separates out relevant parameters
 dam_sf<-st_as_sf(bldam_data, coords = c("DamLongitude", "DamLatitude"), crs = 4326, agr = "constant") # creates a spatial data frame to detect distance
 numdams<-length(dam_sf$DamName) #number of dams, will be useful later
 
@@ -93,21 +94,21 @@ for (i in 1:numdams){ #cycles through each dam
 }
 
 #download information on gages and combine data for each dam into one data frame
-gagepairs<-data.frame("RefGage"=character(), "distance"=double(), "RefgDrain"=double(), "DamName"=character(), "DamBuilt"=integer(), "DamRemoved"=integer(), "DamGage"=character(), "DamgDrain"=double())
+gagepairs<-data.frame("RefGage"=character(), "distance"=double(), "RefgDrain"=double(), "DamName"=character(), "DamBuilt"=integer(), "DamRemoved"=integer(), "DamGage"=character(), "DamgDrain"=double(), "ResVol"=double(), "DamHeight"=double(), "DamOperation"=character())
 for (i in 1:length(bestref$gageID)){ #goes through each dam
   ref_gage_DA<-readNWISsite(bestref[i,1]) %>% select(drain_area_va) #gets drainage area from USGS Data system on all the listed reference gages
   dam_gage_DA<-readNWISsite(bldam_data[i,4]) %>% select(drain_area_va) #gets drainage area for 'dam' gages 
-  gagepairs<-rbind(gagepairs, data.frame("RefGage"=bestref[i,1], "distance"=bestref[i,2], "RefgDrain"=ref_gage_DA, "DamName"=bldam_data[i,2], "DamBuilt"=bldam_data[i,9], "DamRemoved"=bldam_data[i,10], "DamGage"=bldam_data[i,4], "DamgDrain"=dam_gage_DA, stringsAsFactors=FALSE)) #puts it into a dataframe with other useful parameters about the dams
+  gagepairs<-rbind(gagepairs, data.frame("RefGage"=bestref[i,1], "distance"=bestref[i,2], "RefgDrain"=ref_gage_DA, "DamName"=bldam_data[i,2], "DamBuilt"=bldam_data[i,9], "DamRemoved"=bldam_data[i,10], "DamGage"=bldam_data[i,4], "DamgDrain"=dam_gage_DA, "ResVol"=bldam_data[i,11], "DamHeight"=bldam_data[i,12], "DamOperation"=bldam_data[i,14], stringsAsFactors=FALSE)) #puts it into a dataframe with other useful parameters about the dams
 }
 
 #function to make a comparison between pre-dam and post-dam maximum 1 day flows,
 # using dam gage and reference gage values
 compare_flows<-function(dat){
   output<-data.frame("DamName" = character(), "AverageDifference"=double(), "PValue" = double(), "Error" = character()) #sets up data frame to report output
-  rday1maxes<-data.frame("year"=integer(), "d1max"=double()) #creates dataframe for refernce gage flow statistic
-  dday1maxes<-data.frame("year"=integer(), "d1max"=double()) #creates dataframe for dam gage statistic
   l=length(dat$DamName) #sets length of the loop
   for (i in 1:l){ #goes through each Dam 
+	rday1maxes<-data.frame("year"=integer(), "d1max"=double()) #creates dataframe for refernce gage flow statistic
+	dday1maxes<-data.frame("year"=integer(), "d1max"=double()) #creates dataframe for dam gage statistic
     refdat<-readNWISdv(site=dat[i,1], parameterCd="00060")  #gets daily flow in cfs
     ddat<-readNWISdv(site=dat[i,7], parameterCd="00060") #same as above but for the dam gages
     if (dat[i,1]==dat[i,7]){ #reports error if the dam gage and reference gage are the same
@@ -138,7 +139,7 @@ compare_flows<-function(dat){
     dda<-dat[i,8] #dam gage drainage area
     comb_maxes<-merge(rday1maxes,dday1maxes, by = 'year') #combines reference and dam gage data
     colnames(comb_maxes)<-c("year", "refgage", "damgage") #renames columns
-    comb_maxes<-cbind(comb_maxes, (comb_maxes$damgage/dda)/(comb_maxes$refgage/rda)) #adds a column of the ratio between dam gage and reference gage, scaled by drainage area
+    comb_maxes<-cbind(comb_maxes, (comb_maxes$damgage/dda)-(comb_maxes$refgage/rda)) #adds a column of the ratio between dam gage and reference gage, scaled by drainage area
     colnames(comb_maxes)<-c("year", "refgage", "damgage", "comparison") #renames columns
     if (nrow(comb_maxes)<1) { #generates error if no years with data from both gages and moves to next dam
       output<-rbind(output,data.frame("DamName" = dat[i,4], "AverageDifference"= NA, "PValue" = NA, "Error" = 'Error2'))
@@ -160,7 +161,7 @@ compare_flows<-function(dat){
       output<-rbind(output,data.frame("DamName" = dat[i,4], "AverageDifference"= (mean(wdam$comparison)/mean(wodam$comparison)), "PValue" = ttest$p.value, "Error" = 'Error4')) #reports average difference between flow stat between during and after dam periods and pvalue
     } else {
       ttest<-t.test(wdam$comparison, wodam$comparison)
-      output<-rbind(output,data.frame("DamName" = dat[i,4], "AverageDifference"= (mean(wdam$comparison)/mean(wodam$comparison)), "PValue" = ttest$p.value, "Error" = 'NA'))
+      output<-rbind(output,data.frame("DamName" = dat[i,4], "AverageDifference"= (median(wdam$comparison)/median(wodam$comparison)), "PValue" = ttest$p.value, "Error" = 'NA'))
     }
   }
   return(output)
@@ -169,25 +170,8 @@ compare_flows<-function(dat){
 final_results<-compare_flows(gagepairs)
 
 #writes to csv
-completeresults<-merge(final_results,gagepairs, by='DamName') #puts all info in one dataframe
-colnames(completeresults)[7]<-'refdrain'
-colnames(completeresults)[11]<-'damdrain'
+completeresults1<-merge(final_results,gagepairs, by='DamName') #puts all info in one dataframe
+colnames(completeresults2)[7]<-'refdrain'
+colnames(completeresults2)[11]<-'damdrain'
 write.csv(completeresults, file='max1dayresults.csv') #prints data frame to csv
 
-#creates histograms of all results, significant and insignificant only
-plotdata<-completeresults %>% filter(is.na(AverageDifference)==FALSE) %>% select (DamName, AverageDifference, PValue, refdrain, damdrain)
-plotdata$significant<- (plotdata$PValue<0.05)
-plot1<- plotdata %>% filter(significant==TRUE) 
-plot2<- plotdata %>% filter(significant==FALSE)
-
-jpeg(file="alldams.jpg", height=300)
-ggplot(plotdata, aes(AverageDifference))+ geom_histogram(binwidth=0.5, fill="green") + scale_x_continuous(name = 'mean of during dam/mean of after dam', breaks = seq(0,11,0.5), labels=c('0','0.5', '1',' 1.5','2',' ',' ',' ',' ',' ','5',' ',' ',' ',' ',' ',' ',' ',' ',' ','10',' ',' '))+ theme_classic()+ ggtitle('Histogram of during/after ratio for evaluated dams')
-dev.off()
-
-jpeg(file="sigdams.jpg", height=300)
-ggplot(plot1, aes(AverageDifference))+ geom_histogram(binwidth=0.5, fill="blue") + scale_x_continuous(name = 'mean of during dam/mean of after dam', breaks = seq(0,11,0.5), labels=c('0','0.5', '1',' 1.5','2',' ',' ',' ',' ',' ','5',' ',' ',' ',' ',' ',' ',' ',' ',' ','10',' ',' '))+ theme_classic()+ ggtitle('Histogram of during/after ratio for dams with p <0.05')
-dev.off()
-
-jpeg(file="nonsigdams.jpg", height=300)
-ggplot(plot2, aes(AverageDifference))+ geom_histogram(binwidth=0.5, fill="yellow") + scale_x_continuous(name = 'mean of during dam/mean of after dam', breaks = seq(0,11,0.5), labels=c('0','0.5', '1',' 1.5','2',' ',' ',' ',' ',' ','5',' ',' ',' ',' ',' ',' ',' ',' ',' ','10',' ',' '))+ theme_classic()+ ggtitle('Histogram of during/after ratio for evaluated dams, with p>0.05')
-dev.off()
